@@ -1,0 +1,5 @@
+method,attributes,rows,roc_auc,vs_baseline_pct
+All attributes (baseline),21,160631,0.8110178334627219,0.0
+Subset selection (top 10),10,160631,0.8058940721565052,-0.63
+PCA (17 components),17,160631,0.8028658628445811,-1.01
+Subset + 10% sample,10,16063,0.8054315110788155,-0.69

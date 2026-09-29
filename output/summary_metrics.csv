@@ -1,0 +1,12 @@
+metric,value
+Raw rows,"253,680"
+Duplicate rows removed,"24,206"
+Rows after cleaning,"229,474"
+Missing values found,0
+BMI values winsorised,"1,627"
+Memory after type conversion,5.9 MB (from 39.0 MB)
+Strongest correlate of diabetes,GenHlth (r = +0.277)
+Attributes kept after selection,10 of 21
+PCA components for 90% variance,17 of 21
+Baseline ROC-AUC,0.8110
+ROC-AUC after full reduction,0.8054

@@ -1,0 +1,227 @@
+
+==============================================================================
+TASK 1 : LOADING THE DATASET
+==============================================================================
+Rows    : 253,680
+Columns : 22
+Memory  : 42.6 MB
+
+==============================================================================
+TASK 2 : DATA CLEANING
+==============================================================================
+
+2.1 MISSING VALUES
+  Standard NaN / blank cells : 0
+  Values outside the codebook range (e.g. 7/9/77/99 refusal codes) : 0
+
+2.2 DUPLICATE RECORDS
+  Fully duplicated rows : 24,206  (9.54%)
+  Diabetes rate before  : 0.1393
+  Diabetes rate after   : 0.1529
+  Rows remaining        : 229,474
+
+2.3 NOISY DATA - OUTLIER DETECTION ON BMI
+  IQR rule      : bounds [12.0, 44.0] -> 5,638 outliers
+  Z-score > 3   : 2,547 outliers
+  K-means (99th pct distance) : 1,997 outliers
+  Flagged by both IQR and z-score : 2,547
+  Winsorised at [17, 56] -> 1,627 values capped
+  BMI std before 6.79 -> after 6.35
+  BMI max before 98 -> after 56
+
+2.4 NOISE SMOOTHING BY BINNING
+  MentHlth: 66.4% are zero, 16.3% are round numbers
+  PhysHlth: 59.5% are zero, 18.3% are round numbers
+
+2.5 DATA TYPE CONVERSION
+  Memory 39.0 MB -> 5.9 MB (85% smaller)
+
+2.6 CLASS BALANCE OF THE TARGET
+  No diabetes            : 84.7%
+  Prediabetes / diabetes : 15.3%
+  Note: a model that always predicts 'no diabetes' would already be
+  84.7% accurate, so ROC-AUC is used later, not accuracy.
+
+2.7 EFFECT OF THE CLEANING ON MODEL QUALITY
+  ROC-AUC with untreated BMI  : 0.8095
+  ROC-AUC with winsorised BMI : 0.8110
+  Change: +0.0015 - the treatment helped slightly,
+  so the outliers were adding noise rather than signal.
+
+  Cleaned dataset saved -> output/cleaned_data.csv
+
+==============================================================================
+TASK 3 : DATA INTEGRATION, CORRELATION AND TRANSFORMATION
+==============================================================================
+
+3.1 INTEGRATION WITH THE CDC CODEBOOK
+  Codebook rows : 36 covering 6 variables
+  Age        -> Age_Label   unmatched rows: 0
+  Education  -> Education_Label   unmatched rows: 0
+  Income     -> Income_Label   unmatched rows: 0
+  GenHlth    -> GenHlth_Label   unmatched rows: 0
+  Sex        -> Sex_Label   unmatched rows: 0
+  Added Income_USD (band midpoint) and Age_Years (band midpoint)
+  Mean estimated income : $52,163
+  Mean estimated age    : 57.5 years
+
+3.2 CORRELATION ANALYSIS
+
+  Pearson correlation with Diabetes_binary (top 10 by strength):
+    GenHlth                +0.277
+    HighBP                 +0.254
+    BMI                    +0.218
+    DiffWalk               +0.205
+    HighChol               +0.195
+    Age                    +0.177
+    HeartDiseaseorAttack   +0.168
+    PhysHlth               +0.156
+    Income                 -0.141
+    Education              -0.103
+
+  Cramer's V with Diabetes_binary (top 10):
+    GenHlth                0.282
+    HighBP                 0.254
+    BMI                    0.222
+    DiffWalk               0.205
+    HighChol               0.195
+    Age                    0.189
+    HeartDiseaseorAttack   0.168
+    PhysHlth               0.162
+    Income                 0.142
+    Education              0.105
+
+  Chi-square tests of independence vs Diabetes_binary:
+    Significant at p < 0.05 : 21 of 21 attributes
+    With n = 229,474, even a trivial association reaches p < 0.05,
+    so Cramer's V (effect size) is the meaningful ranking, not p.
+
+3.3 TRANSFORMATION
+
+  (a) Discretisation - BMI into WHO categories:
+      Underweight  n=  3,052  diabetes rate   5.5%
+      Normal       n= 73,635  diabetes rate   7.3%
+      Overweight   n= 81,414  diabetes rate  14.0%
+      Obese        n= 71,373  diabetes rate  25.4%
+
+  (b) Generalisation - 13 age bands into 4 life stages:
+      18-39    n= 34,827  diabetes rate   3.3%
+      40-54    n= 54,441  diabetes rate  10.8%
+      55-69    n= 86,043  diabetes rate  19.1%
+      70+      n= 54,163  diabetes rate  21.6%
+
+  (c) Aggregation - composite indicators:
+      Risk_Score      0-6, mean 1.70, correlation with target +0.303
+      Healthy_Habits  0-5, mean 3.61, correlation with target -0.074
+      Diabetes rate by Risk_Score:
+        0:   3.5%  (n=45,572)
+        1:   7.9%  (n=67,758)
+        2:  16.9%  (n=57,245)
+        3:  26.5%  (n=36,218)
+        4:  35.8%  (n=16,256)
+        5:  45.2%  (n=5,360)
+        6:  52.8%  (n=1,065)
+
+  (d) Normalisation of 6 numeric columns:
+      Min-max  -> range [0.0, 1.0]
+      Z-score  -> mean 0.00, std 1.00
+
+==============================================================================
+TASK 4 : DATA REDUCTION
+==============================================================================
+
+Baseline: all 21 attributes -> ROC-AUC 0.8110
+
+4.1 ATTRIBUTE SUBSET SELECTION
+
+  Mutual information with the target (top 10):
+    GenHlth                0.0387
+    HighBP                 0.0331
+    BMI                    0.0246
+    Age                    0.0213
+    HighChol               0.0190
+    DiffWalk               0.0181
+    HeartDiseaseorAttack   0.0117
+    PhysHlth               0.0115
+    Income                 0.0094
+    PhysActivity           0.0049
+    top  3 attributes -> ROC-AUC 0.7804  (-3.78% vs all)
+    top  5 attributes -> ROC-AUC 0.8036  (-0.92% vs all)
+    top  8 attributes -> ROC-AUC 0.8051  (-0.73% vs all)
+    top 10 attributes -> ROC-AUC 0.8059  (-0.63% vs all)
+    top 12 attributes -> ROC-AUC 0.8061  (-0.61% vs all)
+    top 15 attributes -> ROC-AUC 0.8096  (-0.18% vs all)
+    top 21 attributes -> ROC-AUC 0.8110  (+0.00% vs all)
+
+  Chosen subset (10 attributes): GenHlth, HighBP, BMI, Age, HighChol, DiffWalk, HeartDiseaseorAttack, PhysHlth, Income, PhysActivity
+  Attributes dropped: 11 of 21 (52% fewer)
+  ROC-AUC change: 0.8110 -> 0.8059 (-0.63%)
+
+4.2 DIMENSIONALITY REDUCTION - PCA
+  Components for 80% of variance : 14
+  Components for 90% of variance : 17
+  Components for 95% of variance : 19
+  First component alone explains  : 15.7%
+  PCA with 17 components -> ROC-AUC 0.8029 (-1.01% vs all)
+  Attributes loading most on PC1: GenHlth, DiffWalk, PhysHlth, Income
+
+4.3 NUMEROSITY REDUCTION - SAMPLING
+      1% of training rows (  1,606) -> ROC-AUC 0.8044
+      5% of training rows (  8,031) -> ROC-AUC 0.8095
+     10% of training rows ( 16,063) -> ROC-AUC 0.8103
+     25% of training rows ( 40,157) -> ROC-AUC 0.8107
+     50% of training rows ( 80,315) -> ROC-AUC 0.8108
+    100% of training rows (160,631) -> ROC-AUC 0.8110
+
+4.4 SUMMARY OF THE REDUCTION
+                   method  attributes   rows  roc_auc  vs_baseline_pct
+All attributes (baseline)          21 160631 0.811018             0.00
+Subset selection (top 10)          10 160631 0.805894            -0.63
+      PCA (17 components)          17 160631 0.802866            -1.01
+      Subset + 10% sample          10  16063 0.805432            -0.69
+
+  Data volume: 3,373,251 values -> 160,630 values (95.2% smaller)
+  ROC-AUC cost: 0.8110 -> 0.8054 (-0.69%)
+
+==============================================================================
+TASK 5 : SUMMARY OF KEY FINDINGS
+==============================================================================
+                         metric                 value
+                       Raw rows               253,680
+         Duplicate rows removed                24,206
+            Rows after cleaning               229,474
+           Missing values found                     0
+          BMI values winsorised                 1,627
+   Memory after type conversion 5.9 MB (from 39.0 MB)
+Strongest correlate of diabetes  GenHlth (r = +0.277)
+Attributes kept after selection              10 of 21
+PCA components for 90% variance              17 of 21
+               Baseline ROC-AUC                0.8110
+   ROC-AUC after full reduction                0.8054
+
+Figures written to figures/ :
+  _contact.jpg
+  fig01_bmi_before_after.png
+  fig02_bmi_boxplot.png
+  fig03_binning.png
+  fig04_correlation_heatmap.png
+  fig05_corr_with_target.png
+  fig06_transformed_rates.png
+  fig07_risk_score.png
+  fig08_mutual_info.png
+  fig09_subset_curve.png
+  fig10_pca.png
+  fig11_sampling.png
+  fig12_reduction_summary.png
+
+Data and result tables written to output/ :
+  chi_square_results.csv
+  cleaned_data.csv
+  correlation_with_target.csv
+  reduced_data.csv
+  reduction_summary.csv
+  results.json
+  run_log.txt
+  summary_metrics.csv
+
+Done.

@@ -1,0 +1,23 @@
+# Report files
+*.docx
+*.pdf
+FINDINGS_BRIEF.md
+build_report.js
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+~$*
+
+# Tooling
+node_modules/
+.streamlit/secrets.toml
